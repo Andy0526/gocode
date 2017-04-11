@@ -2,6 +2,7 @@
 
 ```shell
 $ export GOPATH=$HOME/gocode # 选择⼯作⽬录
+$ export GOBIN=$GOPATH/bin
 $ go get golearb/ch1/helloworld # 获取/编译/安装
 $ $GOPATH/bin/helloworld # 运⾏程序
 Hello, 世界 # 这是中⽂P

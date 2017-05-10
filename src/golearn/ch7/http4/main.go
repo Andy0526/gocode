@@ -32,4 +32,4 @@ func main() {
 	http.HandleFunc("/list", db.list)
 	http.HandleFunc("/price", db.price)
 	log.Fatal(http.ListenAndServe("localhost:8000", nil))
-人民
+}

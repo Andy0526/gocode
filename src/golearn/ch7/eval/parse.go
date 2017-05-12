@@ -2,6 +2,7 @@ package eval
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"text/scanner"
 )
@@ -39,35 +40,71 @@ func precedence(op rune) int {
 	return 0
 }
 
-func parsePrimary(lex *lexer) Expr{
-    switch lex.token {
-    case scanner.Ident:
-        id:=lex.text()
-        lex.next()
-        if lex.token!='('{
-            for {
-                args=append(args,parseExpr(lex))
-                if lex.token!=','{
-                    break
-                }
-                lex.next()
-            }
-            if lex.token !=')'{
-                msg:=fmt.Sprintf("got %q want ')'", lex.token)
-                panic(lexPanic(msg))
-            }
-        }
-        lex.next()
-        return call{id,args}
-    }
-    case scanner.Int,scanner.Float:
+func parsePrimary(lex *lexer) Expr {
+	switch lex.token {
+	case scanner.Ident:
+		id := lex.text()
+		lex.next()
+		var args []Expr
+		if lex.token != '(' {
+			for {
+				args = append(args, parseExpr(lex))
+				if lex.token != ',' {
+					break
+				}
+				lex.next()
+			}
+			if lex.token != ')' {
+				msg := fmt.Sprintf("got %q want ')'", lex.token)
+				panic(lexPanic(msg))
+			}
+		}
+		lex.next()
+		return call{id, args}
+	case scanner.Int, scanner.Float:
+		f, err := strconv.ParseFloat(lex.text(), 64)
+		if err != nil {
+			panic(lexPanic(err.Error()))
+		}
+		lex.next()
+		return literal(f)
+	case '(':
+		lex.next()
+		e := parseExpr(lex)
+		if lex.token != ')' {
+			msg := fmt.Sprintf("got %s, want ')'", lex.describe())
+			panic(lexPanic(msg))
+		}
+		lex.next()
+		return e
+	}
+	msg := fmt.Sprintf("unexpected %s", lex.describe())
+	panic(lexPanic(msg))
 }
 
-func parseBinary(lex *lexer,prec1 int) Expr{
-    lhs:=ParseUnary(lex)
+func parseUnary(lex *lexer) Expr {
+	if lex.token == '+' || lex.token == '-' {
+		op := lex.token
+		lex.next()
+		return unary{op, parseUnary(lex)}
+	}
+	return parsePrimary(lex)
 }
 
-func parseExpr(lex *lexer) Expr{ return }
+func parseBinary(lex *lexer, prec1 int) Expr {
+	lhs := parseUnary(lex)
+	for prec := precedence(lex.token); prec >= prec1; prec-- {
+		for precedence(lex.token) == prec {
+			op := lex.token
+			lex.next()
+			rhs := parseBinary(lex, prec+1)
+			lhs = binary{op, lhs, rhs}
+		}
+	}
+	return lhs
+}
+
+func parseExpr(lex *lexer) Expr { return parseBinary(lex, 1) }
 
 func Parse(input string) (_ Expr, err error) {
 	defer func() {
@@ -82,5 +119,9 @@ func Parse(input string) (_ Expr, err error) {
 	lex := new(lexer)
 	lex.scan.Init(strings.NewReader(input))
 	lex.scan.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanFloats
-    e:=
+	e := parseExpr(lex)
+	if lex.token != scanner.EOF {
+		return nil, fmt.Errorf("unexpected %s", lex.describe())
+	}
+	return e, nil
 }

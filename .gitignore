@@ -3,4 +3,5 @@ bin/*
 pkg
 pkg/*
 .*
+*.jpg
 src/github.com

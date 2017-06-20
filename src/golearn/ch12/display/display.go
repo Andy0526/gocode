@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-func Dispaly(name string, x interface{}) {
+func Display(name string, x interface{}) {
 	fmt.Printf("Dispaly %s (%T):\n", name, x)
 	display(name, reflect.ValueOf(x))
 }
@@ -54,5 +54,20 @@ func display(path string, v reflect.Value) {
 		for _, key := range v.MapKeys() {
 			display(fmt.Sprintf("%s[%s]", path, formatAtom(key)), v.MapIndex(key))
 		}
+	case reflect.Ptr:
+		if v.IsNil() {
+			fmt.Printf("%s = nil\n", path)
+		} else {
+			display(fmt.Sprintf("(*%s)", path), v.Elem())
+		}
+	case reflect.Interface:
+		if v.IsNil() {
+			fmt.Printf("%s = nil\n", path)
+		} else {
+			fmt.Printf("%s.type = %s\n", path, v.Elem().Type())
+			display(path+".value", v.Elem())
+		}
+	default: // basic types, channels, funcs
+		fmt.Printf("%s = %s\n", path, formatAtom(v))
 	}
 }
